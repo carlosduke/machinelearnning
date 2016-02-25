@@ -33,9 +33,10 @@
 				canvas: null,
 				ctx: null,
 				desenhando: false,
+				debug: false,
 				lines: 8,
 				colunes: 5,
-				treinos: {},
+				treinos: null,
 				
 				mousedown: function(e) {
 					this.desenhando = true;
@@ -115,17 +116,20 @@
 					var widthC = width/tool.colunes;
 					var heightC = height/tool.lines;
 					
+					
+					
 					var l = tool.lines;
 					var c = tool.colunes;
-					var grid = [];
+					var grid = new Array(l*c);
+					console.log(grid.length);
 					for(var i = 0; i < l; i++){
 						for(var j = 0; j < c; j++){
-							var index = i*l + j;
-							grid[grid.length] = 0;
+							var index = i*c + j;
+							grid[index] = 0;
 							var data = this.ctx.getImageData(e + j * widthC,t + i * heightC,widthC,heightC).data;
 							for(var ind = 3; ind < data.length; ind+=4){
 								if(data[ind] != 0){
-									grid[grid.length] = 1;
+									grid[index] = 1;
 									break;
 								}
 							}
@@ -133,32 +137,34 @@
 					}
 					
 					//mostar o que foi processado e grade apague a primeira barra para comentar
-					//*
-					this.ctx.rect(e,t,width,height);this.ctx.stroke();
-					for(var i=0;i<l;i++){
-						for(var j=0;j<c;j++){
-							if(grid[i*l+j] == 1) {
-								this.ctx.fillStyle = 'rgba(255,0,0,0.1)';
-							} else {
-								this.ctx.fillStyle = 'rgba(0,0,255,0.1)';
+					if(this.debug) {
+						this.ctx.rect(e,t,width,height);this.ctx.stroke();
+						for(var i=0;i<l;i++){
+							for(var j=0;j<c;j++){
+								if(grid[i*c+j] == 1) {
+									this.ctx.fillStyle = 'rgba(255,0,0,0.1)';
+								} else {
+									this.ctx.fillStyle = 'rgba(0,0,255,0.1)';
+								}
+								this.ctx.rect(e + j * widthC,t + i * heightC,widthC,heightC);
+								this.ctx.fillRect(e + j * widthC,t + i * heightC,widthC,heightC);
+								this.ctx.stroke();
 							}
-							this.ctx.rect(e + j * widthC,t + i * heightC,widthC,heightC);
-							this.ctx.fillRect(e + j * widthC,t + i * heightC,widthC,heightC);
-							this.ctx.stroke();
 						}
 					}
-					//*/
-					//console.log(grid);
 					return grid;
 				},
 				
 				reconhecer: function(){
-					console.log(this.treinos);
-					if(this.treinos.length === 0) {
+					if(this.treinos === null) {
 						alert('Nenhum registro de treino');
 						return;
 					}
+					var score = 0;
+					var text = '';
+					
 					var grid = this.getGrid();
+					
 				},
 				
 				treinar: function(){
@@ -168,10 +174,12 @@
 						return;
 					}
 					var text = prompt('Digite o valor para treino:');
+					if(text == null || text == '') return;
+					if(this.treinos == null){
+						this.treinos = {};
+					}
 					this.treinos[text] = grid;
-					console.log(grid);
 					this.limpar();
-					
 				},
 				
 				limpar: function(){
@@ -184,11 +192,11 @@
 			var btnTreinar = document.getElementById('btnTreinar');
 			var btnLimpar = document.getElementById('btnLimpar');
 			var tool = new Tool(canvas,8,5);
+			tool.debug = true;
 			
 			btnReconhecer.addEventListener('click',	function(e){tool.reconhecer.call(tool,e);});
 			btnTreinar.addEventListener('click',	function(e){tool.treinar.call(tool,e);});
 			btnLimpar.addEventListener('click',	function(e){tool.limpar.call(tool,e);});
-			
 		</script>
 	</body>
 </html>
