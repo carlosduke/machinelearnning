@@ -160,10 +160,29 @@
 						alert('Nenhum registro de treino');
 						return;
 					}
-					var score = 0;
+					var score = -1;
 					var text = '';
 					
 					var grid = this.getGrid();
+					if(grid == null){
+						alert('Favor informar o valor para reconhecer');
+						return;
+					}
+					for(var k in this.treinos){
+						var s = 0;
+						var treino = this.treinos[k];
+						for(var i = 0; i < grid.length; i ++) {
+							s += (treino[i] - grid[i]) ^ 2;
+						}
+						s = Math.sqrt(s);
+						console.log(k + ': ' + s);
+						if(score == -1 || s > score){
+							score = s;
+							text = k;
+						}
+					}
+					
+					alert('Acredito que você digitou: ' + text + ', ' + score);
 					
 				},
 				
