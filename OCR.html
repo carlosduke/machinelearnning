@@ -2,17 +2,36 @@
 	<head>
 		<title>OCR</title>
 		<style type="text/css">
+			.area-ocr {
+				width: 600px;
+				height: auto;
+				float:left;
+			}
 			#cvOCR {
 				border: 1px solid black;
 			}
 		</style>
 	</head>
 	<body>
-		<canvas id="cvOCR" width="600" height="600"></canvas>
-		<button id="btnReconhecer">Reconhecer</button>
-		<button id="btnTreinar">Treinar</button>
-		<button id="btnLimpar">Limpar</button>
-		
+		<div class="area-ocr">
+			<canvas id="cvOCR" width="600" height="600"></canvas>
+		</div>
+		<div class="area-funcoes">
+			<button id="btnReconhecer">Reconhecer</button>
+			<button id="btnTreinar">Treinar</button>
+			<button id="btnLimpar">Limpar</button>
+			<h3 id="areaMsg"></h3>
+			<table>
+				<thead>
+					<tr>
+						<th>Txt</th>
+						<th>Score</th>
+					</tr>
+				</thead>
+				<tbody id="tblScore"></tbody>
+			</table>
+			
+		</div>
 		<script type="text/javascript">
 			var Tool = function(canvas,l,c){
 				this.canvas = canvas;
@@ -31,12 +50,14 @@
 			
 			Tool.prototype = {
 				canvas: null,
+				table: null,
 				ctx: null,
 				desenhando: false,
 				debug: false,
 				lines: 8,
 				colunes: 5,
 				treinos: null,
+				
 				
 				mousedown: function(e) {
 					this.desenhando = true;
@@ -168,6 +189,9 @@
 						alert('Favor informar o valor para reconhecer');
 						return;
 					}
+					if(this.table != null){
+						this.table.innerHTML = '';
+					}
 					for(var k in this.treinos){
 						var s = 0;
 						var treino = this.treinos[k];
@@ -180,9 +204,20 @@
 							score = s;
 							text = k;
 						}
+						if(this.table != null){
+							var tr = document.createElement('tr');
+							var tdTxt = document.createElement('td');
+							tdTxt.innerHTML = k;
+							var tdS = document.createElement('td');
+							tdS.innerHTML = s;
+							tr.appendChild(tdTxt);
+							tr.appendChild(tdS);
+							this.table.appendChild(tr);
+						}
 					}
 					
-					alert('Acredito que você digitou: ' + text + ', ' + score);
+					document.getElementById('areaMsg').innerHTML = text;
+					//alert('Acredito que você digitou: ' + text + ', ' + score);
 					
 				},
 				
@@ -199,10 +234,27 @@
 					}
 					this.treinos[text] = grid;
 					this.limpar();
+					if(this.table != null){
+						this.table.innerHTML = '';
+						for(var k in this.treinos) {
+							var tr = document.createElement('tr');
+							var tdTxt = document.createElement('td');
+							tdTxt.innerHTML = k;
+							var tdS = document.createElement('td');
+							tdS.innerHTML = '';
+							tr.appendChild(tdTxt);
+							tr.appendChild(tdS);
+							this.table.appendChild(tr);
+						}
+					}
 				},
 				
 				limpar: function(){
 					this.ctx.clearRect(0,0,canvas.width,canvas.height);
+				},
+				
+				setTableScore: function(table){
+					this.table = table;
 				}
 			};
 			
@@ -211,7 +263,8 @@
 			var btnTreinar = document.getElementById('btnTreinar');
 			var btnLimpar = document.getElementById('btnLimpar');
 			var tool = new Tool(canvas,8,5);
-			tool.debug = true;
+			tool.debug = false;
+			tool.setTableScore(document.getElementById('tblScore'));
 			
 			btnReconhecer.addEventListener('click',	function(e){tool.reconhecer.call(tool,e);});
 			btnTreinar.addEventListener('click',	function(e){tool.treinar.call(tool,e);});
