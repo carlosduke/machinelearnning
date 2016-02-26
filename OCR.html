@@ -196,11 +196,11 @@
 						var s = 0;
 						var treino = this.treinos[k];
 						for(var i = 0; i < grid.length; i ++) {
-							s += (treino[i] - grid[i]) ^ 2;
+							s += Math.pow(treino[i] - grid[i],2);
 						}
 						s = Math.sqrt(s);
 						console.log(k + ': ' + s);
-						if(score == -1 || s > score){
+						if(score == -1 || score > s){
 							score = s;
 							text = k;
 						}
