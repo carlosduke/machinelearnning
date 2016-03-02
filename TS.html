@@ -1,0 +1,57 @@
+<html>
+	<head><title>teste</title></head>
+	<body>
+		<canvas id="cvML" width="600" height="600" style="border: 1px solid black"></canvas>
+		<script type="text/javascript">
+			var TS = function(canvas){
+				this.canvas = canvas;
+				this.ctx = canvas.getContext('2d');
+				var w = this.canvas.width/2;
+				var h = this.canvas.height/2;
+				var xIni = w
+				var yIni = h;
+				var qtdCid = 50;
+				for(var i = 0; i < qtdCid; i++){
+					var ang = (360/qtdCid) * i;
+					var g = ang * (Math.PI / 180);
+					this.cidades.push({
+						x: xIni + (w * 0.9) * Math.cos(g),
+						y: yIni + (h * 0.9) * Math.sin(g)
+					})
+				}
+				//console.log(this.cidades);
+				this.desenhar();
+			}
+			
+			TS.prototype = {
+				canvas: null,
+				ctx: null,
+				cidades:[],
+				
+				
+				desenhar:function(){
+					var ctx = this.ctx;
+					
+					var cidadeAnt = null;
+					ctx.beginPath();
+					for(var i in this.cidades){
+						var cidade = this.cidades[i];
+						if(i == 0){
+							ctx.moveTo(cidade.x,cidade.y);
+						}
+						
+						ctx.fillRect(cidade.x - 5, cidade.y-5, 10, 10);
+						ctx.fillText(i, cidade.x + 10, cidade.y);
+						ctx.lineTo(cidade.x,cidade.y);
+					}
+					ctx.stroke();
+					
+				}
+			
+			};
+			
+			var canvas = document.getElementById("cvML");
+			var ts = new TS(canvas);
+		</script>
+	</body>
+</html>
