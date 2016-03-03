@@ -1,25 +1,61 @@
 <html>
-	<head><title>teste</title></head>
+	<head>
+		<title>teste</title>
+		<style>
+			div canvas,div table {
+				float: left;
+			}
+		</style>
+	</head>
+	
 	<body>
-		<canvas id="cvML" width="600" height="600" style="border: 1px solid black"></canvas>
+		<div>
+			<canvas id="cvML" width="600" height="600" style="border: 1px solid black"></canvas>	
+			<table>
+				<thead>
+					<tr><th colspan="2">INICIAL</th></tr>
+					<tr>
+						<th>X</th>
+						<th>Y</th>
+						<th>Dist</th>
+					</tr>
+				</thead>
+				<tbody id="tblInicio"></tbody>
+			</table>
+			<table>
+				<thead>
+					<tr><th colspan="2">ITERACAO</th></tr>
+					<tr>
+						<th>X</th>
+						<th>Y</th>
+						<th>Dist</th>
+					</tr>
+				</thead>
+				<tbody id="tblIteracao"></tbody>
+			</table>
+		</div>
 		<script type="text/javascript">
-			var TS = function(canvas){
+			var TS = function(aceleracao,tamanhoPasso,canvas,qtdCid,circ){
 				this.canvas = canvas;
 				this.ctx = canvas.getContext('2d');
 				var w = this.canvas.width/2;
 				var h = this.canvas.height/2;
 				var xIni = w
 				var yIni = h;
-				var qtdCid = 50;
-				for(var i = 0; i < qtdCid; i++){
-					var ang = (360/qtdCid) * i;
-					var g = ang * (Math.PI / 180);
-					this.cidades.push({
-						x: xIni + (w * 0.9) * Math.cos(g),
-						y: yIni + (h * 0.9) * Math.sin(g)
-					})
+				
+				if(circ) {
+					//Cidades em circulo
+					for(var i = 0; i < qtdCid; i++){
+						var ang = (360/qtdCid) * i;
+						var g = ang * (Math.PI / 180);
+						this.cidades.push({
+							x: xIni + (w * 0.9) * Math.cos(g),
+							y: yIni + (h * 0.9) * Math.sin(g)
+						})
+					}
 				}
 				//console.log(this.cidades);
+				this.iniciar(aceleracao,tamanhoPasso);
 				this.desenhar();
 			}
 			
@@ -27,31 +63,210 @@
 				canvas: null,
 				ctx: null,
 				cidades:[],
+				pesos:[],
+				candidatos: [],
+				tamanhoPasso: [],
+				melhorDist: 0,
+				parar: false,
 				
+				iniciar: function(a,tP){
+					//Setar valores dos candidatos
+					this.candidatos.push(a);
+					this.candidatos.push(1/a);
+					this.candidatos.push(0);
+					this.candidatos.push(- 1/a);
+					this.candidatos.push(- a);
+					
+					var pesos = [];
+					for(var i = this.cidades.length; i > 1; i--){
+						var p = parseInt(Math.random() * i);
+						var norm = this.norm(p,0,1,i);
+						pesos.push(norm);
+						this.tamanhoPasso.push(tP);
+					}
+					//pesos = [0.2, 0.5263157894736842, 0.05555555555555555, 0.17647058823529413, 0.6875, 0.5333333333333333, 0.5, 0.15384615384615385, 0.75, 0.45454545454545453, 0.1, 0.3333333333333333, 0.75, 0.8571428571428571, 0.8333333333333334, 0.4, 0.25, 0.3333333333333333, 0];
+					this.pesos = pesos;
+					this.exibirTabela(pesos,document.getElementById('tblInicio'));
+					this.melhorDist = this.getDist();
+				},
+				
+				iterar: function(){
+					var melhorD = this.getDist(); //Valor impossivel para distancia
+					for(var i in this.pesos){
+						var melhorC = -1;
+						for(var j in this.candidatos) {
+							this.pesos[i] = this.pesos[i] + (this.tamanhoPasso[i] * this.candidatos[j]);
+							if(this.pesos[i] > 1 || this.pesos[i] < 0){ 
+								this.pesos[i] = this.pesos[i] - (this.tamanhoPasso[i] * this.candidatos[j]);
+								continue;
+							}
+							var distancia = this.getDist();
+							this.pesos[i] = this.pesos[i] - (this.tamanhoPasso[i] * this.candidatos[j]);
+							
+							if(distancia < melhorD){
+								melhorD = distancia;
+								melhorC = j;
+							}
+						}
+						if(melhorC != -1){
+							this.pesos[i] = this.pesos[i] + (this.tamanhoPasso[i] * this.candidatos[melhorC]);
+							this.tamanhoPasso[i] = this.tamanhoPasso[i] * this.candidatos[melhorC];
+						}
+					}
+					if(this.melhorDist != melhorD){
+						this.melhorDist = melhorD;
+					} else {
+						this.parar = true;
+					}
+					this.exibirTabela(this.pesos,document.getElementById('tblIteracao'));
+				},
 				
 				desenhar:function(){
 					var ctx = this.ctx;
+					this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);//limpar
+					var cidades = this.cidades.slice(0);//clonar array
+					var pCidade = this.dNorm(this.pesos[0],0,1,cidades.length);
+					var cidade = cidades[pCidade];
+					cidades.splice(pCidade,1);
 					
-					var cidadeAnt = null;
 					ctx.beginPath();
-					for(var i in this.cidades){
-						var cidade = this.cidades[i];
-						if(i == 0){
-							ctx.moveTo(cidade.x,cidade.y);
-						}
+					ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
+					ctx.moveTo(cidade.x,cidade.y);
+					for(var i = 1; i < this.pesos.length; i++) {
+						var dists = this.getDists(cidade,cidades);
 						
-						ctx.fillRect(cidade.x - 5, cidade.y-5, 10, 10);
-						ctx.fillText(i, cidade.x + 10, cidade.y);
+						procCidade = this.dNorm(this.pesos[0],0,1,dists.length);
+						var objCid = dists[procCidade];
+						pCidade = objCid.cid;
+						
+						cidade = cidades[pCidade];
+						cidades.splice(pCidade,1);
+						ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
 						ctx.lineTo(cidade.x,cidade.y);
 					}
+					cidade = cidades[0];
+					ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
+					ctx.lineTo(cidade.x,cidade.y);
 					ctx.stroke();
+				},
+				
+				getDists: function(c,cidades) {
+					var dist = [];
+					for(var i = 0; i < cidades.length; i++){
+						var proxC = cidades[i];
+						dist.push({cid: i, dist: Math.sqrt(Math.pow(c.x - proxC.x,2) + Math.pow(c.y - proxC.y,2))});
+					}
+					return dist.sort(function(c,c2){return c.dist - c2.dist;});
+				},
+				
+				getDist: function(){
+					var cidades = this.cidades.slice(0);//clonar array
+					var pCidade = this.dNorm(this.pesos[0],0,1,cidades.length);
+					var cidade = cidades[pCidade];
+					cidades.splice(pCidade,1);
+					var total = 0;
+					for(var i = 1; i < this.pesos.length; i++) {
+						var dists = this.getDists(cidade,cidades);
+						pCidade = this.dNorm(this.pesos[i],0,1,dists.length);
+						
+						var objCid = dists[pCidade];
+						total += objCid.dist;
+						cidade = cidades[objCid.cid];
+						cidades.splice(objCid.cid,1);
+					}
+					return total;
+				},
+				
+				//Normalização de valores
+				norm: function(v, min, max, N) {
+					return ((max - min) * v)/N + min;
+				},
+				
+				dNorm: function(v, min, max, N){
+					return Math.floor((N * (v - min)) / (max - min));
+				},
+				
+				isParar: function(){
+					return this.parar;
+				},
+				
+				exibirTabela: function(pesos,tabela){
+					tabela.innerHTML = '';
+					var cidades = this.cidades.slice(0);//clonar array
+					var pCidade = this.dNorm(pesos[0],0,1,cidades.length);
+					var cidade = cidades[pCidade];
+
+					var tr = document.createElement('tr');
+					var tdX = document.createElement('td');
+					var tdY = document.createElement('td');
+					var tdDist = document.createElement('td');
+					var tdPeso = document.createElement('td');
 					
+					tdDist.innerHTML = 0;
+					tdX.innerHTML = cidade.x;
+					tdY.innerHTML = cidade.y;
+					tdPeso.innerHTML = pesos[0];
+
+					tr.appendChild(tdX);
+					tr.appendChild(tdY);
+					tr.appendChild(tdDist);
+					tr.appendChild(tdPeso);
+
+					tabela.appendChild(tr);
+					
+					cidades.splice(pCidade,1);
+					var total = 0;
+					for(var i = 1; i < this.pesos.length; i++) {
+						var dists = this.getDists(cidade,cidades);
+						pCidade = this.dNorm(this.pesos[i],0,1,dists.length);
+						
+						var objCid = dists[pCidade];
+						cidade = cidades[objCid.cid];
+						
+						var tr = document.createElement('tr');
+						var tdX = document.createElement('td');
+						var tdY = document.createElement('td');
+						var tdDist = document.createElement('td');
+						var tdPeso = document.createElement('td');
+						
+						tdX.innerHTML = cidade.x;
+						tdY.innerHTML = cidade.y;
+						tdDist.innerHTML = objCid.dist;
+						tdPeso.innerHTML = pesos[i];
+						
+						tr.appendChild(tdX);
+						tr.appendChild(tdY);
+						tr.appendChild(tdDist);
+						tr.appendChild(tdPeso);
+						
+						tabela.appendChild(tr);
+						cidades.splice(objCid.cid,1);
+					}
+					cidade = cidades[0];
+					var tr = document.createElement('tr');
+					var tdX = document.createElement('td');
+					var tdY = document.createElement('td');
+					tdX.innerHTML = cidade.x;
+					tdY.innerHTML = cidade.y;
+					tr.appendChild(tdX);
+					tr.appendChild(tdY);
+					tabela.appendChild(tr);
 				}
-			
 			};
 			
 			var canvas = document.getElementById("cvML");
-			var ts = new TS(canvas);
+			var ts = new TS(5,0.05,canvas,20,true);
+			console.log(ts.pesos);
+			console.log(ts.getDist());
+			
+			var interval = window.setInterval(function(){
+				ts.iterar();
+				ts.desenhar();
+				console.log(ts.getDist());
+				if(ts.isParar()) {
+					window.clearInterval(interval);
+				}
+			},1000);
 		</script>
 	</body>
 </html>
