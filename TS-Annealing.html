@@ -1,0 +1,206 @@
+<html>
+	<head>
+		<title>teste</title>
+		<style>
+			div canvas,div table, div button {
+				float: left;
+			}
+		</style>
+	</head>
+	
+	<body>
+		<div>
+			<canvas id="cvML" width="600" height="600" style="border: 1px solid black"></canvas>	
+			<button onclick="iterar()">Iterar</button>
+		</div>
+		<script type="text/javascript">
+			var TS = function(canvas,qtdCid,circ){
+				this.canvas = canvas;
+				this.ctx = canvas.getContext('2d');
+				var w = this.canvas.width/2;
+				var h = this.canvas.height/2;
+				var xIni = w
+				var yIni = h;
+				
+				if(circ) {
+					//Cidades em circulo
+					for(var i = 0; i < qtdCid; i++){
+						var ang = (360/qtdCid) * i;
+						var g = ang * (Math.PI / 180);
+						this.cidades.push({
+							x: xIni + (w * 0.9) * Math.cos(g),
+							y: yIni + (h * 0.9) * Math.sin(g)
+						});
+					}
+				}
+				//console.log(this.cidades);
+				this.iniciar();
+				this.desenhar();
+			}
+			
+			TS.prototype = {
+				canvas: null,
+				ctx: null,
+				cidades:[],
+				pesos:[],
+				globalBestError: 0,
+				globalBest: [],
+				passo: 0,
+				maxIteracao: 50,
+				tInicial: 50,
+				tFinal: 2,
+				
+				parar: false,
+				
+				iniciar: function(){
+					this.performRandomize();
+					this.globalBestError = this.getDist();
+				},
+				
+				iterar: function(ciclos){
+					this.passo++;
+					var temperaturaAtual = this.coolingSchedule();
+					var currentError = this.getDist();
+					for(var c = 0; c < ciclos; c++){
+						var bkpPesos = this.pesos.slice(0);
+						this.performRandomize();
+						var trialError = this.getDist();
+						var keep = false;
+						if(trialError < currentError){
+							keep = true;
+						} else {
+							var p = this.calcProbability(currentError,trialError,temperaturaAtual);
+							if(p > Math.random()) {
+								keep = true;
+							}
+						}
+						if(keep){
+							currentError = trialError;
+							if(trialError < this.globalBestError) {
+								this.globalBestError = trialError;
+								bkpPesos = this.pesos.splice(0);
+								this.globalBest = this.pesos.splice(0);
+							}
+						} else {
+							this.pesos = bkpPesos.splice(0);
+						}
+					}
+				},
+				
+				desenhar:function(){
+					var ctx = this.ctx;
+					this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);//limpar
+					var cidades = this.cidades.slice(0);//clonar array
+					var pCidade = this.dNorm(this.pesos[0],0,1,cidades.length);
+					var cidade = cidades[pCidade];
+					cidades.splice(pCidade,1);
+					
+					ctx.beginPath();
+					ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
+					ctx.moveTo(cidade.x,cidade.y);
+					for(var i = 1; i < this.pesos.length; i++) {
+						var dists = this.getDists(cidade,cidades);
+						
+						procCidade = this.dNorm(this.pesos[i],0,1,dists.length);
+						var objCid = dists[procCidade];
+						pCidade = objCid.cid;
+						
+						cidade = cidades[pCidade];
+						cidades.splice(pCidade,1);
+						ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
+						ctx.lineTo(cidade.x,cidade.y);
+					}
+					cidade = cidades[0];
+					ctx.fillRect(cidade.x - 1, cidade.y-1, 2, 2);
+					ctx.lineTo(cidade.x,cidade.y);
+					ctx.stroke();
+				},
+				
+				getDists: function(c,cidades) {
+					var dist = [];
+					for(var i = 0; i < cidades.length; i++){
+						var proxC = cidades[i];
+						dist.push({cid: i, dist: Math.sqrt(Math.pow(c.x - proxC.x,2) + Math.pow(c.y - proxC.y,2))});
+					}
+					return dist.sort(function(c,c2){return c.dist - c2.dist;});
+				},
+				
+				getDist: function(){
+					var cidades = this.cidades.slice(0);//clonar array
+					var pCidade = this.dNorm(this.pesos[0],0,1,cidades.length);
+					var cidade = cidades[pCidade];
+					cidades.splice(pCidade,1);
+					var total = 0;
+					for(var i = 1; i < this.pesos.length; i++) {
+						var dists = this.getDists(cidade,cidades);
+						pCidade = this.dNorm(this.pesos[i],0,1,dists.length);
+						
+						var objCid = dists[pCidade];
+						total += objCid.dist;
+						cidade = cidades[objCid.cid];
+						cidades.splice(objCid.cid,1);
+					}
+					return total;
+				},
+				
+				//Normalização de valores
+				norm: function(v, min, max, N) {
+					N = N -1;//Indice de arrays
+					return ((max - min) * v)/N + min;
+				},
+				
+				dNorm: function(v, min, max, N){
+					N = N -1;
+					return Math.floor((N * (v - min)) / (max - min));
+				},
+				
+				isParar: function(){
+					return this.parar;
+				},
+				
+				coolingSchedule: function(){
+					return this.tInicial * Math.pow(this.tFinal/this.tInicial,this.passo/this.maxIteracao);
+				},
+				
+				performRandomize: function(){
+					var pesos = [];
+					for(var i = this.cidades.length; i > 1; i--){
+						var p = parseInt(Math.random() * i);
+						var norm = this.norm(p,0,1,i);
+						pesos.push(norm);
+					}
+					this.pesos = pesos;
+				},
+				
+				calcProbability: function(currentError,trialError,temperaturaAtual){
+					var r = Math.exp(-(currentError - trialError)/temperaturaAtual);
+					console.log('Current: ' + currentError + ', Trial: ' + trialError + ', TAtual: ' + temperaturaAtual + ', R: ' + r);
+					console.log('Current: ' + currentError + ', Trial: ' + trialError + ', TAtual: ' + temperaturaAtual + ', R: ' +  Math.exp(-(trialError - currentError)/temperaturaAtual));
+					return r;
+				}
+			};
+			
+			var canvas = document.getElementById("cvML");
+			var ts = new TS(canvas,50,true);
+			//console.log(ts.pesos);
+			//console.log(ts.getDist());
+			
+			function iterar(){
+				ts.iterar(10);
+				ts.desenhar();
+				console.log(ts.getDist());
+			}
+			ts.iterar(10);
+			ts.desenhar();
+			console.log(ts.getDist());
+			/*var interval = window.setInterval(function(){
+				ts.iterar();
+				ts.desenhar();
+				console.log(ts.getDist());
+				if(ts.isParar()) {
+					window.clearInterval(interval);
+				}
+			},1000);*/
+		</script>
+	</body>
+</html>
